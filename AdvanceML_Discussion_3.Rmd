@@ -1,0 +1,190 @@
+---
+title: "AdvanceML_Discussion_3"
+author: "Ali Alghaithi"
+date: "11/30/2020"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(fig.align='center', dpi=100, message=FALSE, warning=FALSE, cache=T,echo=T)
+output <- opts_knit$get("rmarkdown.pandoc.to")
+if(!is.null(output)) {
+  if (output=="html") opts_chunk$set(out.width = '400px') else
+    opts_chunk$set(out.width='.6\\linewidth')
+}
+set.seed(38380987)
+```
+
+
+
+# Reading the data
+```{r}
+library(readr)
+library(dplyr)
+creditcard <- read_csv("/Users/alialghaithi/Box/Advance NL Class/Discussion3/creditcard.csv")
+head(creditcard)
+```
+
+
+
+```{r}
+table(creditcard$Class)
+```
+
+
+```{r}
+reduce_major <- creditcard %>% filter(creditcard$Class==0)
+minority <- creditcard %>% filter(creditcard$Class==1)
+
+for30 <- reduce_major[sample(nrow(reduce_major), ((nrow(minority)*100)/30)-nrow(minority)), ]
+Data30 <- rbind(for30,minority)
+Data30$Class <- as.factor(Data30$Class)
+prop.table(table(Data30$Class))
+
+
+for10 <- reduce_major[sample(nrow(reduce_major), ((nrow(minority)*100)/10)-nrow(minority)), ]
+Data10 <- rbind(for10,minority)
+Data10$Class <- as.factor(Data10$Class)
+prop.table(table(Data10$Class))
+
+
+for1 <- reduce_major[sample(nrow(reduce_major), ((nrow(minority)*100)/1)-nrow(minority)), ]
+Data1 <- rbind(for1,minority)
+Data1$Class <- as.factor(Data1$Class)
+prop.table(table(Data1$Class))
+
+
+# write.csv(Data1,"Data1.csv", row.names = FALSE)
+# write.csv(Data10,"Data10.csv", row.names = FALSE)
+# write.csv(Data30,"Data30.csv", row.names = FALSE)
+
+```
+
+# function for measurements 
+```{r}
+measurements <- function(real,pred,Name) {
+Confusion_Matrix<- table(real,pred,dnn = c("Real", "y_pred"))
+TN = Confusion_Matrix[1,1]
+FN= Confusion_Matrix[2,1]
+FP= Confusion_Matrix[1,2]
+TP= Confusion_Matrix[2,2]
+
+# True Negative Rate 
+Acc_Negative = TN/(TN+FP)
+
+# True Positive Rate
+Acc_Positive = TP/(TP+FN)
+Recall = Acc_Positive
+
+# G-mean 
+G_mean = (Acc_Negative * Acc_Positive)^(1/2)
+
+# Precision
+Precision = TP/(TP+FP)
+
+# Weighted Accuracy
+Beta= 0.5 # Here we use equal weights for both true positive rate and true negative rate; i.e., β equals 0.5
+Weighted_Accuracy=  (Beta * Acc_Positive) + ((1-Beta)*Acc_Negative)
+
+# F-measure
+F_measure = (2 * Precision * Recall) /(Precision + Recall)
+
+performance_measures <- data.frame("Method"= Name,"Acc_Positive(Recall)" =Acc_Positive, "Acc_Negative" = Acc_Negative, "Precision" = Precision,"F_measure" = F_measure,"G_mean" = G_mean,"Weighted_Accuracy" = Weighted_Accuracy)
+
+return(performance_measures)
+
+}
+
+```
+
+
+# =======================================================================================
+# 30% Data
+## Regular random forest
+```{r}
+set.seed(2020)
+library(randomForest)
+RegularRF30 <- randomForest(Class~., data=Data30)
+table(Data30$Class,RegularRF30$predicted,dnn = c("Real", "y_pred"))
+measurements(Data30$Class ,RegularRF30$predicted,"RegularRF30")
+
+```
+
+## Balanced random forest
+```{r}
+set.seed(2020)
+# BRF cutoff=.2
+sampsize = Data30  %>%filter(Class=="1") %>% nrow()
+library(randomForest)
+BRF30 <- randomForest(Class~., data=Data30, importance=TRUE,sampsize=sampsize,cutoff = c(0.3, 0.7),
+                           replace = T)
+table(Data30$Class , BRF30$predicted,dnn = c("Real", "y_pred"))
+
+measurements(Data30$Class ,BRF30$predicted,"BRF30")
+```
+
+
+
+# =======================================================================================
+# 10% Data
+## Regular random forest
+```{r}
+set.seed(2020)
+library(randomForest)
+RegularRF10 <- randomForest(Class~., data=Data10)
+table(Data10$Class,RegularRF10$predicted,dnn = c("Real", "y_pred"))
+measurements(Data10$Class ,RegularRF10$predicted,"RegularRF10")
+
+```
+
+## Balanced random forest
+```{r}
+set.seed(2020)
+# BRF cutoff=.2
+sampsize = Data10  %>%filter(Class=="1") %>% nrow()
+library(randomForest)
+BRF10 <- randomForest(Class~., data=Data10, importance=TRUE,sampsize=sampsize,cutoff = c(0.3, 0.7),
+                           replace = T)
+table(Data10$Class , BRF10$predicted,dnn = c("Real", "y_pred"))
+
+measurements(Data10$Class ,BRF10$predicted,"BRF10")
+```
+## Weighted random forest
+
+# =======================================================================================
+# 1% Data
+## Regular random forest
+```{r}
+set.seed(2020)
+library(randomForest)
+RegularRF1 <- randomForest(Class~., data=Data1)
+table(Data1$Class,RegularRF1$predicted,dnn = c("Real", "y_pred"))
+measurements(Data1$Class ,RegularRF1$predicted,"RegularRF1")
+
+```
+
+## Balanced random forest
+```{r}
+set.seed(2020)
+# BRF cutoff=.2
+sampsize = Data1  %>%filter(Class=="1") %>% nrow()
+library(randomForest)
+BRF1 <- randomForest(Class~., data=Data1, importance=TRUE,sampsize=sampsize,cutoff = c(0.3, 0.7),
+                           replace = T)
+table(Data1$Class , BRF1$predicted,dnn = c("Real", "y_pred"))
+measurements(Data1$Class ,BRF1$predicted,"BRF1")
+```
+
+
+
+# Comments
+
+- After comparing the three methods, it shows that wghited Randomforest perforemd better than the other methods. And the balanced randomforest prfrme also better than th basic Randomforest. 
+
+this approach of tuning randomforest to help it perfor better when we have unbalance data sets can be only useful when cosdiering yousing the randomforest alograthem. however, this opns a great way of learnign how to learn to have an alograthem that performs bad wiht unblanced data sets and make it work better. 
+
+
+In adiiton, the more the positve class gets smaller, the more difiecult to fins the right values for tuning the cutoff and wighted class parameters. 

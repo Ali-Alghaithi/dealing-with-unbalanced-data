@@ -1,0 +1,314 @@
+---
+title: "P_AdvanceML"
+author: "Ali Alghaithi"
+date: "10/19/2020"
+output: html_document
+---
+
+# Reading the data 
+```{r}
+
+library(readr)
+Mammography <- read_csv("~/Box/Advance NL Class/ML Teaching Presentation/Mammography.csv")
+# head(Mammography)
+# summary(Mammography)
+# str(Mammography)
+# 
+# table(Mammography$class)
+
+R.version.string
+
+
+# Data prepration 
+library(caret)
+set.seed(2020)
+Mammography$class <- as.factor(ifelse(Mammography$class %in% "'-1'","No","Yes"))
+
+trainIndex <- createDataPartition(Mammography$class, p = 0.67, 
+                                  list = FALSE, 
+                                  times = 1)
+train1 <- Mammography[ trainIndex,]
+test1  <- Mammography[-trainIndex,]
+
+```
+
+```{r}
+table(train1$class)
+```
+
+```{r}
+table(test1$class)
+```
+# Method Implintations 
+
+```{r}
+set.seed(2020)
+
+# library(randomForest)
+# rf.cv <- rfcv(as.data.frame(train1[,-7]),train1$class, cv.fold=10)
+# with(rf.cv, plot(n.var, error.cv, type="b", col="red"))
+
+# The Cross validation is plotted and found that the mean of error.cv trend to 0 with all 6 variables. This is an excelent orientation to choose Random Forest as chosen model
+
+#sampsize
+# This will randomly sample 10, 20 and 10 entities from the three classes of species (with replacement) to grow each tree.
+# cutoff
+# (Classification only) A vector of length equal to number of classes. The `winning' class for an observation is the one with the maximum ratio of proportion of votes to cutoff. Default is 1/k where k is the number of classes (i.e., majority vote wins).
+
+
+# cutoff
+# The default RF classification aggregate trees by majority vote. Either you must modify the distribution of class votes of trees(see example A) or you must change the aggregation rule (see example B). Option A could be achieved by stratification/downsampling or classweight. I mainly mention because it is possible, as it probably will decrease overall prediction performance (AUC of ROC of test set predictions). Option B is to modify aggregation rule. Any sample predicted by a forest will get a number of votes(or 0) on each of the classes. The pluralism of the votes can be understood as a pseudo estimate of predicted probability, where the predicted probability of k'th class is votes on class k divided by all-votes. The voting threshold can be modified with the cutoff parameter, either during training or during prediction. The predicted class probabilities are basically divided with the class cutoffs. if cutoff = c(.5,.5) there is no change. if cutoff = c(.1,.9) much more votes on class 1. There is a gotcha in the randomForest, such that OOB-CV predictions only will take effect from cutoff if modified during training, whereas for predictions of newdata or testsets cutoff can be modified after training.
+
+
+set.seed(2020)
+# BRF cutoff=.2
+sampsize = rep(min(as.integer(summary( train1$class))),2)
+library(randomForest)
+classifier <- randomForest(x = train1[-7], y=train1$class, importance=TRUE,sampsize=sampsize,cutoff = c(0.2, 0.8),
+                           replace = T)
+
+set.seed(2020)
+#BRF cutoff=.3
+sampsize = rep(min(as.integer(summary( train1$class))),2)
+classifier <- randomForest(x = train1[-7], y=train1$class, importance=TRUE,sampsize=sampsize,cutoff = c(0.3, 0.7),replace = T)
+
+
+# WRF weight=2:1 
+
+#balanced weight, you should do:The higher the weight a class is given, the more its error rate is decreased. A guide as to what weights to give is to make them inversely proportional to the class populations. So set weights to 1 on class 1, and 20 on class 2, and run again. The output is:
+
+
+# Install new version of R (lets say 3.5.0 in this example)
+
+# Create a new directory for the version of R
+fs::dir_create("/Library/Frameworks/R.framework/Versions/3.2.1/Resources/library")
+
+# Re-start R so the .libPaths are updated
+
+# Lookup what packages were in your old package library
+randomForest <- fs::path_file(fs::dir_ls("/Library/Frameworks/R.framework/Versions/4.0/Resources/library"))
+
+# Filter these packages as needed
+
+# Install the packages in the new version
+install.packages(randomForest)
+
+library(randomForest)
+
+
+
+str(library(randomForest))
+.libPaths()
+set.seed(2020)
+
+classifier <- randomForest(x = train1[-7], y=train1$class,
+                           classwt = c("Yes"=1, "No"=1/10))
+
+
+require(devtools)
+install_version("ggplot2", version = "0.9.1", repos = "http://cran.us.r-project.org")
+
+
+#~/Box/Advance NL Class/ML Teaching Presentation/Mammography.csv
+#WRF weight=3:1
+
+#classifier <- randomForest(x = train1[-7], y=train1$class,
+classwt = c("Yes"=, "No"=1), cutoff = c(0.2, 0.8))
+
+#WRF weight=2:1
+library(ranger)
+train1$class <-factor(train1$class)
+set.seed(2020)
+classifier <- ranger(class ~ .,data = train1,class.weights = c("Yes"=1, "No"=1/3),replace = T)
+
+
+
+# https://christophm.github.io/interpretable-ml-book/rules.html
+# Ripper 
+# https://en.wikibooks.org/wiki/Data_Mining_Algorithms_In_R/Classification/JRip
+
+set.seed(2020)
+library(caret)
+jripFit <- train(x=train1[,1:6], y=train1$class,method = "JRip")
+
+
+
+set.seed(2020)
+# SMOTE 100
+## now using SMOTE to create a more "balanced problem"
+library(smotefamily)
+dat_plot =smotefamily:::SMOTE(as.data.frame(train1[,1:6]),  # feature values
+            train1$class,  # class labels
+              K = 5, dup_size = 1)
+
+train <- rbind(dat_plot$syn_data,train1)
+              # function parameters
+ train$class <-factor(train$class)
+library(RWeka)
+fit.C4.5_SMOTE.100 <- J48(class~., data=train)
+# summarize the fit
+summary(fit.C4.5_SMOTE.100)
+
+set.seed(2020)
+# SMOTE 200
+library(smotefamily)
+dat_plot =smotefamily:::SMOTE(as.data.frame(train1[,1:6]),  # feature values
+            train1$class,  # class labels
+              K = 5, dup_size = 2)
+train2 <- rbind(dat_plot$syn_data,train1)
+              # function parameters
+train2$class <-factor(train2$class)
+library(RWeka)
+fit.C4.5_SMOTE.200 <- J48(class~., data=train2)
+
+
+# https://machinelearningmastery.com/non-linear-classification-in-r-with-decision-trees/
+
+
+
+# Unlike standard boosting where all misclassified examples are given equal weights, SMOTEBoost creates synthetic examples from the rare or minority class, thus indirectly changing the updating weights and compensating for skewed distributions.
+SMOTEBoost is “an over-sampling method based on the SMOTE algorithm that injects the SMOTE method at each boosting iteration.”
+
+#SMOTEBoost 100
+library(ebmc)
+train1$class <- factor(train1$class , levels = c("Yes", "No"), labels = c("1", "0"))
+train1 = as.data.frame(train1)
+classifier <- sbo(class ~ ., data = train1, size = 5, over = 100, alg = "c50")
+
+
+# SMOTEBoost 200
+library(ebmc)
+train1$class <- factor(train1$class , levels = c("Yes", "No"), labels = c("1", "0"))
+train1 = as.data.frame(train1)
+classifier <-ebmc:::sbo(class ~ ., data = train1, size = 5, over = 200, alg = "c50")
+.libPaths()
+
+# Predictions
+y_pred <- predict(classifier, as.data.frame(test1[-7]))
+#y_pred <-y_pred$predictions
+#data<-data.frame(y_pred)
+#data$y_pred <- ifelse(data$y_pred>=0.5,"Yes","No")
+#table(data$y_pred)
+#y_pred <- factor(data$y_pred)
+
+misClasificError <- mean(as.numeric(y_pred == "Yes") !=  as.numeric(test1$class == "Yes")) 
+compare<- data.frame("y_pred" = y_pred, "Real" = test1$class, stringsAsFactors = FALSE)
+table(test1$class,y_pred,dnn = c("Real", "y_pred"))
+print(paste('Accuracy',(1-misClasificError)))
+```
+# Confusion Matrix
+```{r}
+Confusion_Matrix<- table(test1$class,y_pred,dnn = c("Real", "y_pred"))
+TN = Confusion_Matrix[1,1]
+FN= Confusion_Matrix[2,1]
+FP= Confusion_Matrix[1,2]
+TP= Confusion_Matrix[2,2]
+
+# True Negative Rate 
+Acc_Negative = TN/(TN+FP)
+
+# True Positive Rate
+Acc_Positive = TP/(TP+FN)
+Recall = Acc_Positive
+
+# G-mean 
+G_mean = (Acc_Negative * Acc_Positive)^(1/2)
+
+# Precision
+Precision = TP/(TP+FP)
+
+# Weighted Accuracy
+Beta= 0.5 # Here we use equal weights for both true positive rate and true negative rate; i.e., β equals 0.5
+Weighted_Accuracy=  (Beta * Acc_Positive) + ((1-Beta)*Acc_Negative)
+
+# F-measure
+F_measure = (2 * Precision * Recall) /(Precision + Recall)
+
+performance_measures <- data.frame("Method"= "WRF weight=3:1", "Acc_Positive(Recall)" =Acc_Positive, "Acc_Negative" = Acc_Negative, "Precision" = Precision,"F_measure" = F_measure,"G_mean" = G_mean,"Weighted_Accuracy" = Weighted_Accuracy)
+performance_measures
+```
+
+```{r}
+BRF_cutoff_.2 <-  performance_measures
+BRF_cutoff_.3 <- performance_measures
+Standard_RIPPER <- performance_measures
+WRF_weight_3_1 <- performance_measures
+WRF_weight_2_1 <- performance_measures
+SMOTE_100 <- performance_measures
+SMOTE_200 <- performance_measures
+boostSMOTE_100 <- performance_measures
+boostSMOTE_200 <- performance_measures
+
+rbind(Standard_RIPPER,SMOTE_100,SMOTE_200,boostSMOTE_100,boostSMOTE_200,BRF_cutoff_.2,BRF_cutoff_.3,WRF_weight_2_1,WRF_weight_3_1)
+```
+
+
+
+
+# Performance Assessment
+
+#prepare model for ROC Curve
+
+```{r}
+library(ROCR)
+
+
+
+predicted.forest = predict(classifier,newdata = test1[-7],type='prob')
+forest.to.roc <- predicted.forest[,2]
+forest.pred.rocr <- prediction(forest.to.roc, test1$class)
+
+forest.perf.rocr <- performance(forest.pred.rocr, measure = "auc", x.measure = "cutoff") 
+#forest.perf.rocr
+forest.perf.tpr.rocr <- performance(forest.pred.rocr, "tpr","fpr")
+plot(forest.perf.tpr.rocr, col="blue",main="BRF ROC Comparison")
+```
+
+
+
+```{r}
+data(iris)
+data <- iris[, c(1, 2, 5)]
+data$Species <- factor(ifelse(data$Species == "setosa","rare","common")) 
+## checking the class distribution of this artificial data set
+table(data$Species)
+library(DMwR )
+
+data
+## now using SMOTE to create a more "balanced problem"
+newData <- SMOTE(Species ~ ., data, perc.over = 600,perc.under=100)
+table(newData$Species)
+
+## Checking visually the created data
+## Not run: 
+# par(mfrow = c(1, 2))
+# plot(data[, 1], data[, 2], pch = 19 + as.integer(data[, 3]),
+#      main = "Original Data")
+# plot(newData[, 1], newData[, 2], pch = 19 + as.integer(newData[,3]),
+#      main = "SMOTE'd Data")
+# ## End(Not run)
+
+## Now an example where we obtain a model with the "balanced" data
+classTree <- SMOTE(Species ~ ., data, perc.over = 600,perc.under=100,
+                   learner='rpartXse',se=0.5)
+## check the resulting classification tree
+classTree
+## The tree with the unbalanced data set would be
+rpartXse(Species ~ .,data,se=0.5)
+
+ R 3.2.1.
+library(base)
+Version() 
+
+```
+
+```{r}
+DATA <- read.csv(file = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS_CwczzqchO_N38mXauGQrYAtea2lBjjXHvso9peTi9-wQwrUjBrSSk9JAz7iur8ZQJmbeh4jbKGio/pub?output=csv')
+DATA <- DATA[,c(2,9,11)]
+DATA
+DATA[order(DATA[,1]),]
+```
+```{r}
+colnames(DATA) <- c("Name of Organization", "Mission Statement","A Brief Description Of How The Organization Would Spend The 1.000 Grant Money If Awarded")
+DATA
+```
